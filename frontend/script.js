@@ -5,9 +5,7 @@
 const MARKER = "\u2063";
 
 // ─── Backend URL ─────────────────────────────────────────────────────────────
-// Change this to your Render URL after deploy, e.g.:
-// const API = "https://blindtest-backend.onrender.com";
-const API = window.BACKEND_URL || "https://blindtest-backend.onrender.com";
+const API = window.BACKEND_URL || "https://blindtest-backend-2cy0.onrender.com";
 
 // ─── Keep backend awake (ping every 120 s) ───────────────────────────────────
 setInterval(() => {
@@ -283,28 +281,28 @@ generateBtn.addEventListener("click", async () => {
     const res = await fetch(`${API}/parse`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({
+        text,
+        shuffleQuestions: shuffleQuestions.checked,
+        shuffleAnswers:   shuffleAnswers.checked
+      }),
       signal: AbortSignal.timeout(8000)
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      questions = data.questions || [];
-    } else {
-      throw new Error("backend error");
-    }
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    questions = data.questions || [];
   } catch {
-    // Backend unavailable — parse locally
+    // fallback: local parse + shuffle
     questions = parseQuestionsLocal(text);
+    if (shuffleQuestions.checked) shuffle(questions);
+    if (shuffleAnswers.checked)   questions.forEach(q => shuffle(q.answers));
   }
 
   generateBtn.disabled = false;
   generateBtn.style.opacity = "";
 
   if (!questions.length) { alert("Не удалось распознать вопросы"); return; }
-
-  if (shuffleQuestions.checked) shuffle(questions);
-  if (shuffleAnswers.checked) questions.forEach(q => shuffle(q.answers));
 
   inputSection.classList.add("hidden");
   testSection.classList.remove("hidden");
