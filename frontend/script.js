@@ -179,7 +179,12 @@ function parseLocal(text) {
     }
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
       if (!cur) continue;
-      cur.answers.push({ text: line.replaceAll(MARKER, "").trim(), correct: line.includes(MARKER) });
+      const isCorrect = line.includes(MARKER);
+      const clean = line
+        .replaceAll(MARKER, "")
+        .replace(/^[A-D][\s.)]+\s*/, "")
+        .trim();
+      cur.answers.push({ text: clean, correct: isCorrect });
       continue;
     }
     if (cur && cur.answers.length === 0) cur.question += "\n" + line;
@@ -292,13 +297,16 @@ function renderPage() {
     card.innerHTML = `
       <div class="question-title">${qIndex + 1}. ${q.question}</div>
       <div class="answers">
-        ${q.answers.map((a, aIndex) => `
+        ${q.answers.map((a, aIndex) => {
+          const letter = String.fromCharCode(65 + aIndex); // A, B, C, D
+          return `
           <label class="answer">
             <input type="radio" name="q-${qIndex}" value="${aIndex}"
               ${testChecked ? "disabled" : ""}>
+            <span class="answer-letter">${letter})</span>
             ${a.text}
-          </label>
-        `).join("")}
+          </label>`;
+        }).join("")}
       </div>
     `;
     questionsContainer.appendChild(card);

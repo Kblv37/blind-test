@@ -389,6 +389,18 @@ button {
   user-select: none;
 }
 
+.answer-letter {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 20px;
+}
+
+body.light .answer-letter {
+  color: #9ca3af;
+}
+
 .answer:hover {
   border-color: rgba(93,141,255,0.4);
   background: rgba(93,141,255,0.07);

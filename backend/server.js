@@ -77,7 +77,13 @@ function parse(rawText) {
     }
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
       if (!cur) continue;
-      cur.answers.push({ text: line.replaceAll(MARKER, "").trim(), correct: line.includes(MARKER) });
+      // Strip the letter prefix (A) / A. / A ) — store only the answer text
+      const isCorrect = line.includes(MARKER);
+      const clean = line
+        .replaceAll(MARKER, "")
+        .replace(/^[A-D][\s.)]+\s*/, "")
+        .trim();
+      cur.answers.push({ text: clean, correct: isCorrect });
       continue;
     }
     if (cur && cur.answers.length === 0) cur.question += "\n" + line;
