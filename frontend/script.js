@@ -188,6 +188,55 @@ function parseLocal(text) {
   return questions;
 }
 
+// ─── SESSION SYNC (Neon DB via backend) ──────────────────────────────────────
+let sessionId = null;
+let syncTimer = null;
+
+async function createSession() {
+  try {
+    const res = await fetch(`${API}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers: {} }),
+      signal: AbortSignal.timeout(4000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      sessionId = data.id;
+    }
+  } catch { /* DB not available, use local only */ }
+}
+
+function syncAnswers() {
+  if (!sessionId) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => {
+    fetch(`${API}/session/${sessionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answers }),
+      signal: AbortSignal.timeout(4000)
+    }).catch(() => {});
+  }, 1000); // debounce 1s
+}
+
+// ─── ANSWERS STORE (persists across pages) ───────────────────────────────────
+// answers[qIndex] = aIndex (number) or undefined
+const answers = {};
+
+function saveAnswer(qIndex, aIndex) {
+  answers[qIndex] = aIndex;
+  syncAnswers(); // sync to DB
+}
+
+function getAnswer(qIndex) {
+  return answers[qIndex]; // undefined if not answered
+}
+
+function clearAnswers() {
+  Object.keys(answers).forEach(k => delete answers[k]);
+}
+
 // ─── PAGINATION ──────────────────────────────────────────────────────────────
 let questions  = [];
 let currentPage = 1;
@@ -230,7 +279,7 @@ function renderPagination() {
 
 function renderPage() {
   questionsContainer.innerHTML = "";
-  const pageQ = pageQuestions();
+  const pageQ  = pageQuestions();
   const offset = (currentPage - 1) * PAGE_SIZE;
 
   pageQ.forEach((q, i) => {
@@ -250,6 +299,21 @@ function renderPage() {
       </div>
     `;
     questionsContainer.appendChild(card);
+
+    // Restore saved answer
+    const saved = getAnswer(qIndex);
+    if (saved !== undefined) {
+      const radio = card.querySelector(`input[value="${saved}"]`);
+      if (radio) radio.checked = true;
+    }
+  });
+
+  // Save answers on change
+  questionsContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+      saveAnswer(Number(radio.name.replace("q-", "")), Number(radio.value));
+      updateProgress();
+    });
   });
 
   renderPagination();
@@ -295,6 +359,7 @@ generateBtn.addEventListener("click", async () => {
   testSection.classList.remove("hidden");
   testActive = true;
 
+  createSession(); // start DB session (non-blocking)
   renderPage();
   createQuestionNav();
   startTimer();
@@ -344,8 +409,8 @@ function updateProgress() {
   const drawerNavItems = document.querySelectorAll("#navDrawerGrid .nav-item");
 
   questions.forEach((_, index) => {
-    const checked = document.querySelector(`input[name="q-${index}"]:checked`);
-    if (checked) {
+    const hasAnswer = getAnswer(index) !== undefined;
+    if (hasAnswer) {
       answered++;
       navItems[index]?.classList.add("answered");
       drawerNavItems[index]?.classList.add("answered");
@@ -366,6 +431,7 @@ function fullReset() {
   testActive = false;
   questions = [];
   currentPage = 1;
+  clearAnswers();
   questionsContainer.innerHTML = "";
   questionNav.innerHTML = "";
   navDrawerGrid.innerHTML = "";
@@ -387,6 +453,7 @@ newTestBtn.addEventListener("click", () => {
 // ─── RESET ANSWERS ───────────────────────────────────────────────────────────
 resetBtn.addEventListener("click", () => {
   if (!confirm("Сбросить все ответы?")) return;
+  clearAnswers();
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
   document.querySelectorAll(".answer").forEach(a => a.classList.remove("correct", "wrong"));
   document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("answered"));
@@ -404,49 +471,23 @@ checkBtn.addEventListener("click", () => {
   clearInterval(interval);
   testActive = false;
 
-  // Render all questions to DOM temporarily for checking
-  const allCards = [];
-  questions.forEach((q, qIndex) => {
-    // Check if already rendered
-    let card = document.querySelector(`[data-qindex="${qIndex}"]`);
-    if (!card) {
-      card = document.createElement("div");
-      card.style.display = "none";
-      card.dataset.qindex = qIndex;
-      card.innerHTML = `<div class="answers">${
-        q.answers.map((_, aIndex) =>
-          `<label class="answer"><input type="radio" name="q-${qIndex}" value="${aIndex}"></label>`
-        ).join("")
-      }</div>`;
-      document.body.appendChild(card);
-      allCards.push(card);
-    }
-  });
-
   let correct = 0, wrong = 0, skipped = 0;
   mistakesContainer.innerHTML = "";
 
   questions.forEach((q, qIndex) => {
-    const selected = document.querySelector(`input[name="q-${qIndex}"]:checked`);
-    const radios   = document.querySelectorAll(`input[name="q-${qIndex}"]`);
+    const selectedIndex = getAnswer(qIndex); // from answers store
 
-    radios.forEach((radio, index) => {
-      if (q.answers[index]?.correct) radio.parentElement.classList.add("correct");
-    });
+    if (selectedIndex === undefined) { skipped++; return; }
 
-    if (!selected) { skipped++; return; }
-
-    const answerIndex = Number(selected.value);
-    if (q.answers[answerIndex]?.correct) {
+    if (q.answers[selectedIndex]?.correct) {
       correct++;
     } else {
       wrong++;
-      selected.parentElement.classList.add("wrong");
       const correctAnswer = q.answers.find(a => a.correct);
       const div = document.createElement("div");
       div.className = "mistake";
       div.innerHTML = `
-        <strong>Вопрос</strong>
+        <strong>Вопрос ${qIndex + 1}</strong>
         <p>${q.question}</p>
         <strong style="margin-top:8px;display:block;">Правильный ответ</strong>
         <p class="correct-answer-text">${correctAnswer ? correctAnswer.text : "—"}</p>
@@ -454,9 +495,6 @@ checkBtn.addEventListener("click", () => {
       mistakesContainer.appendChild(div);
     }
   });
-
-  // Remove temp cards
-  allCards.forEach(c => c.remove());
 
   const percent = Math.round((correct / questions.length) * 100);
   correctCount.textContent  = correct;
