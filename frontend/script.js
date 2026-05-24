@@ -164,25 +164,25 @@ function shuffle(arr) {
 
 // ─── LOCAL FALLBACK PARSER ───────────────────────────────────────────────────
 function expandInline(line) {
-  // Split "A) foo B) bar C) baz D) qux" into separate lines
-  const parts = line.split(/\s+(?=[A-D]\))/);
-  return parts.length > 1 ? parts.map(s => s.trim()).filter(Boolean) : [line];
+  const parts = line
+    .split(/(?<=[^\s])(?=[A-D]\))|(?<=\s)(?=[A-D]\))/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  return parts.length > 1 ? parts : [line];
 }
 
 function parseLocal(text) {
   const raw = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = [];
-  for (const line of raw.split("\n").map(l => l.trim())) {
-    if (!line) continue;
-    if (/^[A-D]\)/.test(line) && /[A-D]\)/.test(line.slice(2))) {
-      expandInline(line).forEach(l => l && lines.push(l));
-    } else {
-      lines.push(line);
-    }
-  }
 
+  // Insert newline before every A) B) C) D) and "Объяснение:"
+  const normalized = raw
+    .replace(/([^\n])([A-D]\))/g, "$1\n$2")
+    .replace(/([^\n])(Объяснение\s*:)/gi, "$1\n$2");
+
+  const lines = normalized.split("\n").map(l => l.trim()).filter(Boolean);
   const questions = [];
   let cur = null;
+
   for (const line of lines) {
     if (!line) continue;
     if (/^\d+[\s.):]\s*\S/.test(line)) {
@@ -200,7 +200,6 @@ function parseLocal(text) {
       cur.answers.push({ text: clean, correct: isCorrect });
       continue;
     }
-    // Parse explanation line
     if (cur && /^Объяснение\s*:/i.test(line)) {
       cur.explanation = line.replace(/^Объяснение\s*:\s*/i, "").trim();
       continue;

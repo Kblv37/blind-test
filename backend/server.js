@@ -48,36 +48,45 @@ function shuffle(arr) {
 }
 
 function expandInline(line) {
-  const parts = line.split(/\s+(?=[A-D]\))/);
-  return parts.length > 1 ? parts.map(s => s.trim()).filter(Boolean) : [line];
+  // Split on A) B) C) D) boundaries — with or without preceding space
+  // Also handles MARKER (U+2063) glued right before the letter: "текст⁠B)"
+  const parts = line
+    .split(/(?<=[^\s])(?=[A-D]\))|(?<=\s)(?=[A-D]\))/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  return parts.length > 1 ? parts : [line];
 }
 
 function parse(rawText) {
   const text = rawText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  const lines = [];
 
-  for (const line of text.split("\n").map(l => l.trim())) {
-    if (!line) continue;
-    if (/^[A-D]\)/.test(line) && /[A-D]\)/.test(line.slice(2))) {
-      expandInline(line).forEach(l => l && lines.push(l));
-    } else {
-      lines.push(line);
-    }
-  }
+  // Pre-process: insert newline before every A) B) C) D) and "Объяснение:"
+  // This handles cases where everything is on one line (mobile ChatGPT copy)
+  const normalized = text
+    .replace(/([^\n])([A-D]\))/g, "$1\n$2")          // split before A) B) C) D)
+    .replace(/([^\n])(Объяснение\s*:)/gi, "$1\n$2");  // split before Объяснение:
+
+  const lines = normalized
+    .split("\n")
+    .map(l => l.trim())
+    .filter(Boolean);
 
   const questions = [];
   let cur = null;
 
   for (const line of lines) {
     if (!line) continue;
+
+    // New question: starts with digit
     if (/^\d+[\s.):]\s*\S/.test(line)) {
       if (cur && cur.answers.length) questions.push(cur);
       cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [], explanation: "" };
       continue;
     }
+
+    // Answer option
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
       if (!cur) continue;
-      // Strip the letter prefix (A) / A. / A ) — store only the answer text
       const isCorrect = line.includes(MARKER);
       const clean = line
         .replaceAll(MARKER, "")
@@ -86,11 +95,14 @@ function parse(rawText) {
       cur.answers.push({ text: clean, correct: isCorrect });
       continue;
     }
-    // Parse explanation line
+
+    // Explanation line
     if (cur && /^Объяснение\s*:/i.test(line)) {
       cur.explanation = line.replace(/^Объяснение\s*:\s*/i, "").trim();
       continue;
     }
+
+    // Continuation of question text (before any answers)
     if (cur && cur.answers.length === 0) cur.question += "\n" + line;
   }
 
