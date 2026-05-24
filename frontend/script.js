@@ -1,21 +1,12 @@
-// =====================================
-// BLINDTEST PRO
-// =====================================
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const MARKER       = "\u2063";
+const API          = "https://blindtest-backend-2cy0.onrender.com";
+const PAGE_SIZE    = 5; // вопросов на страницу
 
-const MARKER = "\u2063";
+// ─── Ping backend every 120s to prevent sleep ────────────────────────────────
+setInterval(() => fetch(`${API}/ping`).catch(() => {}), 120_000);
 
-// ─── Backend URL ─────────────────────────────────────────────────────────────
-const API = window.BACKEND_URL || "https://blindtest-backend-2cy0.onrender.com";
-
-// ─── Keep backend awake (ping every 120 s) ───────────────────────────────────
-setInterval(() => {
-  fetch(`${API}/ping`).catch(() => {});
-}, 120_000);
-
-// =====================================
-// ELEMENTS
-// =====================================
-
+// ─── ELEMENTS ────────────────────────────────────────────────────────────────
 const input             = document.getElementById("input");
 const generateBtn       = document.getElementById("generateBtn");
 const inputSection      = document.getElementById("inputSection");
@@ -35,17 +26,25 @@ const timerElement      = document.getElementById("timer");
 const shuffleQuestions  = document.getElementById("shuffleQuestions");
 const shuffleAnswers    = document.getElementById("shuffleAnswers");
 const questionNav       = document.getElementById("questionNav");
+const clearInputBtn     = document.getElementById("clearInputBtn");
+const copyPromptBtn     = document.getElementById("copyPromptBtn");
+const copyPromptIcon    = document.getElementById("copyPromptIcon");
+const copyPromptText    = document.getElementById("copyPromptText");
+const aiPrompt          = document.getElementById("aiPrompt");
+const themeBtn          = document.getElementById("themeBtn");
+const themeBtnIcon      = document.getElementById("themeBtnIcon");
+const scrollTopBtn      = document.getElementById("scrollTopBtn");
+const navToggleBtn      = document.getElementById("navToggleBtn");
+const navDrawer         = document.getElementById("navDrawer");
+const navDrawerOverlay  = document.getElementById("navDrawerOverlay");
+const navDrawerClose    = document.getElementById("navDrawerClose");
+const navDrawerGrid     = document.getElementById("navDrawerGrid");
+const drawerProgressBar = document.getElementById("drawerProgressBar");
 
-// =====================================
-// CLEAR INPUT BUTTON
-// =====================================
-
-const clearInputBtn = document.getElementById("clearInputBtn");
-
+// ─── CLEAR INPUT ─────────────────────────────────────────────────────────────
 function updateClearBtn() {
   clearInputBtn.classList.toggle("hidden", !input.value.trim());
 }
-
 input.addEventListener("input", updateClearBtn);
 updateClearBtn();
 
@@ -56,15 +55,7 @@ clearInputBtn.addEventListener("click", () => {
   input.focus();
 });
 
-// =====================================
-// COPY PROMPT
-// =====================================
-
-const copyPromptBtn  = document.getElementById("copyPromptBtn");
-const copyPromptIcon = document.getElementById("copyPromptIcon");
-const copyPromptText = document.getElementById("copyPromptText");
-const aiPrompt       = document.getElementById("aiPrompt");
-
+// ─── COPY PROMPT ─────────────────────────────────────────────────────────────
 copyPromptBtn.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(aiPrompt.textContent.trim());
@@ -77,10 +68,10 @@ copyPromptBtn.addEventListener("click", async () => {
       copyPromptText.textContent = "Скопировать";
     }, 2000);
   } catch {
-    const range = document.createRange();
-    range.selectNode(aiPrompt);
+    const r = document.createRange();
+    r.selectNode(aiPrompt);
     window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
+    window.getSelection().addRange(r);
     document.execCommand("copy");
     window.getSelection().removeAllRanges();
     copyPromptText.textContent = "Скопировано";
@@ -88,33 +79,17 @@ copyPromptBtn.addEventListener("click", async () => {
   }
 });
 
-// =====================================
-// UNLOAD GUARD
-// =====================================
-
+// ─── UNLOAD GUARD ────────────────────────────────────────────────────────────
 let testActive = false;
-
 window.addEventListener("beforeunload", (e) => {
   if (testActive) { e.preventDefault(); e.returnValue = ""; }
 });
 
-// =====================================
-// STORAGE
-// =====================================
-
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
 input.value = localStorage.getItem("blindtest") || "";
+input.addEventListener("input", () => localStorage.setItem("blindtest", input.value));
 
-input.addEventListener("input", () => {
-  localStorage.setItem("blindtest", input.value);
-});
-
-// =====================================
-// THEME
-// =====================================
-
-const themeBtn     = document.getElementById("themeBtn");
-const themeBtnIcon = document.getElementById("themeBtnIcon");
-
+// ─── THEME ───────────────────────────────────────────────────────────────────
 themeBtn.addEventListener("click", () => {
   document.body.classList.toggle("light");
   if (document.body.classList.contains("light")) {
@@ -130,56 +105,30 @@ themeBtn.addEventListener("click", () => {
   }
 });
 
-// =====================================
-// SCROLL TO TOP
-// =====================================
-
-const scrollTopBtn = document.getElementById("scrollTopBtn");
-
+// ─── SCROLL TO TOP ───────────────────────────────────────────────────────────
 window.addEventListener("scroll", () => {
   scrollTopBtn.classList.toggle("visible", window.scrollY > 300);
 }, { passive: true });
+scrollTopBtn.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 
-scrollTopBtn.addEventListener("click", () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
-});
-
-// =====================================
-// MOBILE NAV DRAWER
-// =====================================
-
-const navToggleBtn      = document.getElementById("navToggleBtn");
-const navDrawer         = document.getElementById("navDrawer");
-const navDrawerOverlay  = document.getElementById("navDrawerOverlay");
-const navDrawerClose    = document.getElementById("navDrawerClose");
-const navDrawerGrid     = document.getElementById("navDrawerGrid");
-const drawerProgressBar = document.getElementById("drawerProgressBar");
-
+// ─── MOBILE DRAWER ───────────────────────────────────────────────────────────
 function openDrawer() {
   navDrawer.classList.add("open");
   navDrawerOverlay.style.display = "block";
   requestAnimationFrame(() => navDrawerOverlay.classList.add("open"));
 }
-
 function closeDrawer() {
   navDrawer.classList.remove("open");
   navDrawerOverlay.classList.remove("open");
   setTimeout(() => { navDrawerOverlay.style.display = "none"; }, 260);
 }
-
-navToggleBtn.addEventListener("click", () => {
-  navDrawer.classList.contains("open") ? closeDrawer() : openDrawer();
-});
+navToggleBtn.addEventListener("click", () =>
+  navDrawer.classList.contains("open") ? closeDrawer() : openDrawer());
 navDrawerClose.addEventListener("click", closeDrawer);
 navDrawerOverlay.addEventListener("click", closeDrawer);
 
-// =====================================
-// TIMER
-// =====================================
-
-let seconds = 0;
-let interval;
-
+// ─── TIMER ───────────────────────────────────────────────────────────────────
+let seconds = 0, interval;
 function startTimer() {
   clearInterval(interval);
   seconds = 0;
@@ -191,10 +140,7 @@ function startTimer() {
   }, 1000);
 }
 
-// =====================================
-// SHUFFLE
-// =====================================
-
+// ─── SHUFFLE ─────────────────────────────────────────────────────────────────
 function shuffle(arr) {
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -203,126 +149,95 @@ function shuffle(arr) {
   return arr;
 }
 
-// =====================================
-// LOCAL FALLBACK PARSER
-// Handles both multi-line and inline answers:
-// "A) Foo B) Bar C) Baz D) Qux"
-// =====================================
-
-function splitInlineAnswers(line) {
-  // Split on boundaries like " B) " " C) " " D) "
-  return line
-    .split(/(?=\s[B-D]\)\s?)/)
-    .map(s => s.trim())
-    .filter(Boolean);
+// ─── LOCAL FALLBACK PARSER ───────────────────────────────────────────────────
+function expandInline(line) {
+  // Split "A) foo B) bar C) baz D) qux" into separate lines
+  const parts = line.split(/\s+(?=[A-D]\))/);
+  return parts.length > 1 ? parts.map(s => s.trim()).filter(Boolean) : [line];
 }
 
-function parseQuestionsLocal(text) {
-  const rawLines = text.split("\n").map(l => l.trim());
+function parseLocal(text) {
+  const raw = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   const lines = [];
-
-  for (const line of rawLines) {
+  for (const line of raw.split("\n").map(l => l.trim())) {
     if (!line) continue;
-    // If line starts with an answer option AND has more options inline
-    if (/^[A-D]\)/.test(line) && /\s[B-D]\)\s?/.test(line)) {
-      splitInlineAnswers(line).forEach(l => lines.push(l));
+    if (/^[A-D]\)/.test(line) && /[A-D]\)/.test(line.slice(2))) {
+      expandInline(line).forEach(l => l && lines.push(l));
     } else {
       lines.push(line);
     }
   }
 
   const questions = [];
-  let current = null;
-
+  let cur = null;
   for (const line of lines) {
     if (!line) continue;
-
-    // New question: "1." or "1)"
-    if (/^\d+[.)]\s/.test(line)) {
-      if (current) questions.push(current);
-      current = {
-        question: line.replace(/^\d+[.)]\s*/, ""),
-        answers: []
-      };
+    if (/^\d+[\s.):]\s*\S/.test(line)) {
+      if (cur && cur.answers.length) questions.push(cur);
+      cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [] };
       continue;
     }
-
-    // Answer option
-    if (/^[A-D]\)/.test(line)) {
-      if (!current) continue;
-      const isCorrect = line.includes(MARKER);
-      const clean = line.replaceAll(MARKER, "").trim();
-      current.answers.push({ text: clean, correct: isCorrect });
+    if (/^[A-D][\s.)]\s*\S/.test(line)) {
+      if (!cur) continue;
+      cur.answers.push({ text: line.replaceAll(MARKER, "").trim(), correct: line.includes(MARKER) });
       continue;
     }
-
-    // Continuation of question text
-    if (current) current.question += "\n" + line;
+    if (cur && cur.answers.length === 0) cur.question += "\n" + line;
   }
-
-  if (current) questions.push(current);
+  if (cur && cur.answers.length) questions.push(cur);
   return questions;
 }
 
-// =====================================
-// GENERATE (via backend, fallback local)
-// =====================================
+// ─── PAGINATION ──────────────────────────────────────────────────────────────
+let questions  = [];
+let currentPage = 1;
 
-let questions = [];
+function totalPages() { return Math.ceil(questions.length / PAGE_SIZE); }
 
-generateBtn.addEventListener("click", async () => {
-  const text = input.value.trim();
-  if (!text) { alert("Вставь тест"); return; }
+function pageQuestions() {
+  const start = (currentPage - 1) * PAGE_SIZE;
+  return questions.slice(start, start + PAGE_SIZE);
+}
 
-  generateBtn.disabled = true;
-  generateBtn.style.opacity = "0.7";
-
-  try {
-    const res = await fetch(`${API}/parse`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        shuffleQuestions: shuffleQuestions.checked,
-        shuffleAnswers:   shuffleAnswers.checked
-      }),
-      signal: AbortSignal.timeout(8000)
-    });
-
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    questions = data.questions || [];
-  } catch {
-    // fallback: local parse + shuffle
-    questions = parseQuestionsLocal(text);
-    if (shuffleQuestions.checked) shuffle(questions);
-    if (shuffleAnswers.checked)   questions.forEach(q => shuffle(q.answers));
+function renderPagination() {
+  const total = totalPages();
+  let el = document.getElementById("pagination");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "pagination";
+    el.className = "pagination";
+    testSection.insertBefore(el, document.querySelector(".test-actions"));
   }
+  if (total <= 1) { el.innerHTML = ""; return; }
 
-  generateBtn.disabled = false;
-  generateBtn.style.opacity = "";
+  el.innerHTML = `
+    <button class="page-btn" id="prevPage" ${currentPage === 1 ? "disabled" : ""}>
+      <svg class="icon"><use href="#icon-arrow-left"/></svg>
+    </button>
+    <span class="page-info">${currentPage} / ${total}</span>
+    <button class="page-btn" id="nextPage" ${currentPage === total ? "disabled" : ""}>
+      <svg class="icon" style="transform:rotate(180deg)"><use href="#icon-arrow-left"/></svg>
+    </button>
+  `;
 
-  if (!questions.length) { alert("Не удалось распознать вопросы"); return; }
+  document.getElementById("prevPage").addEventListener("click", () => {
+    if (currentPage > 1) { currentPage--; renderPage(); }
+  });
+  document.getElementById("nextPage").addEventListener("click", () => {
+    if (currentPage < total) { currentPage++; renderPage(); }
+  });
+}
 
-  inputSection.classList.add("hidden");
-  testSection.classList.remove("hidden");
-  testActive = true;
-
-  renderQuestions();
-  createQuestionNav();
-  startTimer();
-});
-
-// =====================================
-// RENDER
-// =====================================
-
-function renderQuestions() {
+function renderPage() {
   questionsContainer.innerHTML = "";
+  const pageQ = pageQuestions();
+  const offset = (currentPage - 1) * PAGE_SIZE;
 
-  questions.forEach((q, qIndex) => {
+  pageQ.forEach((q, i) => {
+    const qIndex = offset + i;
     const card = document.createElement("div");
     card.className = "glass question-card";
+    card.dataset.qindex = qIndex;
     card.innerHTML = `
       <div class="question-title">${qIndex + 1}. ${q.question}</div>
       <div class="answers">
@@ -336,44 +251,91 @@ function renderQuestions() {
     `;
     questionsContainer.appendChild(card);
   });
+
+  renderPagination();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  updateProgress();
 }
 
-// =====================================
-// QUESTION NAV
-// =====================================
+// ─── GENERATE ────────────────────────────────────────────────────────────────
+generateBtn.addEventListener("click", async () => {
+  const text = input.value.trim();
+  if (!text) { alert("Вставь тест"); return; }
 
+  generateBtn.disabled = true;
+  generateBtn.style.opacity = "0.65";
+
+  try {
+    const res = await fetch(`${API}/parse`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        shuffleQuestions: shuffleQuestions.checked,
+        shuffleAnswers:   shuffleAnswers.checked
+      }),
+      signal: AbortSignal.timeout(9000)
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    questions = data.questions || [];
+  } catch {
+    questions = parseLocal(text);
+    if (shuffleQuestions.checked) shuffle(questions);
+    if (shuffleAnswers.checked)   questions.forEach(q => shuffle(q.answers));
+  }
+
+  generateBtn.disabled = false;
+  generateBtn.style.opacity = "";
+
+  if (!questions.length) { alert("Не удалось распознать вопросы"); return; }
+
+  currentPage = 1;
+  inputSection.classList.add("hidden");
+  testSection.classList.remove("hidden");
+  testActive = true;
+
+  renderPage();
+  createQuestionNav();
+  startTimer();
+});
+
+// ─── QUESTION NAV ────────────────────────────────────────────────────────────
 function createQuestionNav() {
   questionNav.innerHTML = "";
   navDrawerGrid.innerHTML = "";
 
   questions.forEach((_, index) => {
-    const item = document.createElement("div");
-    item.className = "nav-item";
-    item.textContent = index + 1;
-    item.addEventListener("click", () => {
-      document.querySelectorAll(".question-card")[index]
-        .scrollIntoView({ behavior: "smooth" });
-    });
-    questionNav.appendChild(item);
+    const make = (onClick) => {
+      const el = document.createElement("div");
+      el.className = "nav-item";
+      el.textContent = index + 1;
+      el.addEventListener("click", onClick);
+      return el;
+    };
 
-    const drawerItem = document.createElement("div");
-    drawerItem.className = "nav-item";
-    drawerItem.textContent = index + 1;
-    drawerItem.addEventListener("click", () => {
-      closeDrawer();
+    questionNav.appendChild(make(() => {
+      const page = Math.floor(index / PAGE_SIZE) + 1;
+      if (page !== currentPage) { currentPage = page; renderPage(); }
       setTimeout(() => {
-        document.querySelectorAll(".question-card")[index]
-          .scrollIntoView({ behavior: "smooth" });
-      }, 280);
-    });
-    navDrawerGrid.appendChild(drawerItem);
+        document.querySelector(`[data-qindex="${index}"]`)
+          ?.scrollIntoView({ behavior: "smooth" });
+      }, 50);
+    }));
+
+    navDrawerGrid.appendChild(make(() => {
+      closeDrawer();
+      const page = Math.floor(index / PAGE_SIZE) + 1;
+      if (page !== currentPage) { currentPage = page; renderPage(); }
+      setTimeout(() => {
+        document.querySelector(`[data-qindex="${index}"]`)
+          ?.scrollIntoView({ behavior: "smooth" });
+      }, 320);
+    }));
   });
 }
 
-// =====================================
-// PROGRESS
-// =====================================
-
+// ─── PROGRESS ────────────────────────────────────────────────────────────────
 document.addEventListener("change", updateProgress);
 
 function updateProgress() {
@@ -393,19 +355,17 @@ function updateProgress() {
     }
   });
 
-  const pct = (answered / questions.length) * 100;
+  const pct = questions.length ? (answered / questions.length) * 100 : 0;
   progressBar.style.width = `${pct}%`;
   if (drawerProgressBar) drawerProgressBar.style.width = `${pct}%`;
 }
 
-// =====================================
-// FULL RESET
-// =====================================
-
+// ─── FULL RESET ──────────────────────────────────────────────────────────────
 function fullReset() {
   clearInterval(interval);
   testActive = false;
   questions = [];
+  currentPage = 1;
   questionsContainer.innerHTML = "";
   questionNav.innerHTML = "";
   navDrawerGrid.innerHTML = "";
@@ -424,10 +384,7 @@ newTestBtn.addEventListener("click", () => {
   fullReset();
 });
 
-// =====================================
-// RESET ANSWERS ONLY
-// =====================================
-
+// ─── RESET ANSWERS ───────────────────────────────────────────────────────────
 resetBtn.addEventListener("click", () => {
   if (!confirm("Сбросить все ответы?")) return;
   document.querySelectorAll('input[type="radio"]').forEach(r => r.checked = false);
@@ -437,17 +394,34 @@ resetBtn.addEventListener("click", () => {
   if (drawerProgressBar) drawerProgressBar.style.width = "0%";
   resultSection.classList.add("hidden");
   mistakesContainer.innerHTML = "";
+  currentPage = 1;
+  renderPage();
   startTimer();
-  window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-// =====================================
-// CHECK
-// =====================================
-
+// ─── CHECK ───────────────────────────────────────────────────────────────────
 checkBtn.addEventListener("click", () => {
   clearInterval(interval);
   testActive = false;
+
+  // Render all questions to DOM temporarily for checking
+  const allCards = [];
+  questions.forEach((q, qIndex) => {
+    // Check if already rendered
+    let card = document.querySelector(`[data-qindex="${qIndex}"]`);
+    if (!card) {
+      card = document.createElement("div");
+      card.style.display = "none";
+      card.dataset.qindex = qIndex;
+      card.innerHTML = `<div class="answers">${
+        q.answers.map((_, aIndex) =>
+          `<label class="answer"><input type="radio" name="q-${qIndex}" value="${aIndex}"></label>`
+        ).join("")
+      }</div>`;
+      document.body.appendChild(card);
+      allCards.push(card);
+    }
+  });
 
   let correct = 0, wrong = 0, skipped = 0;
   mistakesContainer.innerHTML = "";
@@ -457,13 +431,13 @@ checkBtn.addEventListener("click", () => {
     const radios   = document.querySelectorAll(`input[name="q-${qIndex}"]`);
 
     radios.forEach((radio, index) => {
-      if (q.answers[index].correct) radio.parentElement.classList.add("correct");
+      if (q.answers[index]?.correct) radio.parentElement.classList.add("correct");
     });
 
     if (!selected) { skipped++; return; }
 
     const answerIndex = Number(selected.value);
-    if (q.answers[answerIndex].correct) {
+    if (q.answers[answerIndex]?.correct) {
       correct++;
     } else {
       wrong++;
@@ -480,6 +454,9 @@ checkBtn.addEventListener("click", () => {
       mistakesContainer.appendChild(div);
     }
   });
+
+  // Remove temp cards
+  allCards.forEach(c => c.remove());
 
   const percent = Math.round((correct / questions.length) * 100);
   correctCount.textContent  = correct;
