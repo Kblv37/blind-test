@@ -47,24 +47,14 @@ function shuffle(arr) {
   return arr;
 }
 
-function expandInline(line) {
-  // Split on A) B) C) D) boundaries — with or without preceding space
-  // Also handles MARKER (U+2063) glued right before the letter: "текст⁠B)"
-  const parts = line
-    .split(/(?<=[^\s])(?=[A-D]\))|(?<=\s)(?=[A-D]\))/)
-    .map(s => s.trim())
-    .filter(Boolean);
-  return parts.length > 1 ? parts : [line];
-}
-
 function parse(rawText) {
   const text = rawText.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
   // Pre-process: insert newline before every A) B) C) D) and "Объяснение:"
-  // This handles cases where everything is on one line (mobile ChatGPT copy)
+  // Uses lookahead so it works regardless of what precedes the letter (including U+2063)
   const normalized = text
-    .replace(/([^\n])([A-D]\))/g, "$1\n$2")          // split before A) B) C) D)
-    .replace(/([^\n])(Объяснение\s*:)/gi, "$1\n$2");  // split before Объяснение:
+    .replace(/(?=[A-D]\))/g, "\n")           // insert \n before every A) B) C) D)
+    .replace(/(Объяснение\s*:)/gi, "\n$1");  // insert \n before Объяснение:
 
   const lines = normalized
     .split("\n")
@@ -89,7 +79,7 @@ function parse(rawText) {
       if (!cur) continue;
       const isCorrect = line.includes(MARKER);
       const clean = line
-        .replaceAll(MARKER, "")
+        .replace(new RegExp(MARKER, "g"), "")
         .replace(/^[A-D][\s.)]+\s*/, "")
         .trim();
       cur.answers.push({ text: clean, correct: isCorrect });

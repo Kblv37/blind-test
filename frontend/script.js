@@ -163,21 +163,13 @@ function shuffle(arr) {
 }
 
 // ─── LOCAL FALLBACK PARSER ───────────────────────────────────────────────────
-function expandInline(line) {
-  const parts = line
-    .split(/(?<=[^\s])(?=[A-D]\))|(?<=\s)(?=[A-D]\))/)
-    .map(s => s.trim())
-    .filter(Boolean);
-  return parts.length > 1 ? parts : [line];
-}
-
 function parseLocal(text) {
   const raw = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-  // Insert newline before every A) B) C) D) and "Объяснение:"
+  // Split before A) B) C) D) — handles no-space and unicode-marker cases
   const normalized = raw
-    .replace(/([^\n])([A-D]\))/g, "$1\n$2")
-    .replace(/([^\n])(Объяснение\s*:)/gi, "$1\n$2");
+    .replace(/(?=[A-D]\))/g, "\n")           // insert \n before every A) B) C) D)
+    .replace(/(Объяснение\s*:)/gi, "\n$1");  // insert \n before Объяснение:
 
   const lines = normalized.split("\n").map(l => l.trim()).filter(Boolean);
   const questions = [];
@@ -192,9 +184,10 @@ function parseLocal(text) {
     }
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
       if (!cur) continue;
+      // Check for marker BEFORE any string manipulation
       const isCorrect = line.includes(MARKER);
       const clean = line
-        .replaceAll(MARKER, "")
+        .replace(new RegExp(MARKER, "g"), "")
         .replace(/^[A-D][\s.)]+\s*/, "")
         .trim();
       cur.answers.push({ text: clean, correct: isCorrect });
