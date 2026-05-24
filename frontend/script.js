@@ -221,20 +221,21 @@ function syncAnswers() {
 }
 
 // ─── ANSWERS STORE (persists across pages) ───────────────────────────────────
-// answers[qIndex] = aIndex (number) or undefined
 const answers = {};
+let testChecked = false; // true after "Проверить" — locks inputs
 
 function saveAnswer(qIndex, aIndex) {
   answers[qIndex] = aIndex;
-  syncAnswers(); // sync to DB
+  syncAnswers();
 }
 
 function getAnswer(qIndex) {
-  return answers[qIndex]; // undefined if not answered
+  return answers[qIndex];
 }
 
 function clearAnswers() {
   Object.keys(answers).forEach(k => delete answers[k]);
+  testChecked = false;
 }
 
 // ─── PAGINATION ──────────────────────────────────────────────────────────────
@@ -287,12 +288,14 @@ function renderPage() {
     const card = document.createElement("div");
     card.className = "glass question-card";
     card.dataset.qindex = qIndex;
+
     card.innerHTML = `
       <div class="question-title">${qIndex + 1}. ${q.question}</div>
       <div class="answers">
         ${q.answers.map((a, aIndex) => `
           <label class="answer">
-            <input type="radio" name="q-${qIndex}" value="${aIndex}">
+            <input type="radio" name="q-${qIndex}" value="${aIndex}"
+              ${testChecked ? "disabled" : ""}>
             ${a.text}
           </label>
         `).join("")}
@@ -300,20 +303,36 @@ function renderPage() {
     `;
     questionsContainer.appendChild(card);
 
-    // Restore saved answer
     const saved = getAnswer(qIndex);
-    if (saved !== undefined) {
-      const radio = card.querySelector(`input[value="${saved}"]`);
-      if (radio) radio.checked = true;
-    }
-  });
 
-  // Save answers on change
-  questionsContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
-    radio.addEventListener("change", () => {
-      saveAnswer(Number(radio.name.replace("q-", "")), Number(radio.value));
-      updateProgress();
-    });
+    if (testChecked) {
+      // After check: show correct/wrong on every answer
+      card.querySelectorAll(".answer").forEach((label, aIndex) => {
+        if (q.answers[aIndex]?.correct) {
+          label.classList.add("correct");
+        } else if (aIndex === saved && !q.answers[aIndex]?.correct) {
+          label.classList.add("wrong");
+        }
+        // restore checked state visually
+        if (aIndex === saved) {
+          label.querySelector("input").checked = true;
+        }
+      });
+    } else {
+      // Restore saved answer
+      if (saved !== undefined) {
+        const radio = card.querySelector(`input[value="${saved}"]`);
+        if (radio) radio.checked = true;
+      }
+
+      // Save on change
+      card.querySelectorAll('input[type="radio"]').forEach(radio => {
+        radio.addEventListener("change", () => {
+          saveAnswer(Number(radio.name.replace("q-", "")), Number(radio.value));
+          updateProgress();
+        });
+      });
+    }
   });
 
   renderPagination();
@@ -421,8 +440,12 @@ function updateProgress() {
   });
 
   const pct = questions.length ? (answered / questions.length) * 100 : 0;
-  progressBar.style.width = `${pct}%`;
-  if (drawerProgressBar) drawerProgressBar.style.width = `${pct}%`;
+
+  // requestAnimationFrame fixes Android Chrome repaint issue
+  requestAnimationFrame(() => {
+    progressBar.style.width = `${pct}%`;
+    if (drawerProgressBar) drawerProgressBar.style.width = `${pct}%`;
+  });
 }
 
 // ─── FULL RESET ──────────────────────────────────────────────────────────────
@@ -469,13 +492,14 @@ resetBtn.addEventListener("click", () => {
 // ─── CHECK ───────────────────────────────────────────────────────────────────
 checkBtn.addEventListener("click", () => {
   clearInterval(interval);
-  testActive = false;
+  testActive  = false;
+  testChecked = true;
 
   let correct = 0, wrong = 0, skipped = 0;
   mistakesContainer.innerHTML = "";
 
   questions.forEach((q, qIndex) => {
-    const selectedIndex = getAnswer(qIndex); // from answers store
+    const selectedIndex = getAnswer(qIndex);
 
     if (selectedIndex === undefined) { skipped++; return; }
 
@@ -508,6 +532,9 @@ checkBtn.addEventListener("click", () => {
     title.textContent = `Разбор ошибок (${wrong})`;
     mistakesContainer.prepend(title);
   }
+
+  // Re-render current page to show correct/wrong highlights and lock inputs
+  renderPage();
 
   resultSection.classList.remove("hidden");
   resultSection.scrollIntoView({ behavior: "smooth" });

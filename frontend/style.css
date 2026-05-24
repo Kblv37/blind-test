@@ -332,6 +332,7 @@ button {
   background: linear-gradient(90deg, #5d8dff, #39d98a);
   border-radius: 999px;
   transition: width .35s ease;
+  will-change: width;
 }
 
 /* =============================================
@@ -1201,6 +1202,16 @@ body.light .nav-drawer::before {
 body.light .nav-drawer-close {
   background: rgba(17,24,39,0.08);
   color: #6b7280;
+}
+
+/* Locked state after check */
+.answer input[type="radio"]:disabled {
+  cursor: default;
+}
+
+.answer:has(input[type="radio"]:disabled) {
+  cursor: default;
+  pointer-events: none;
 }
 
 /* =============================================
