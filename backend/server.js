@@ -72,7 +72,7 @@ function parse(rawText) {
     if (!line) continue;
     if (/^\d+[\s.):]\s*\S/.test(line)) {
       if (cur && cur.answers.length) questions.push(cur);
-      cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [] };
+      cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [], explanation: "" };
       continue;
     }
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
@@ -84,6 +84,11 @@ function parse(rawText) {
         .replace(/^[A-D][\s.)]+\s*/, "")
         .trim();
       cur.answers.push({ text: clean, correct: isCorrect });
+      continue;
+    }
+    // Parse explanation line
+    if (cur && /^Объяснение\s*:/i.test(line)) {
+      cur.explanation = line.replace(/^Объяснение\s*:\s*/i, "").trim();
       continue;
     }
     if (cur && cur.answers.length === 0) cur.question += "\n" + line;

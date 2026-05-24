@@ -31,6 +31,8 @@ const copyPromptBtn     = document.getElementById("copyPromptBtn");
 const copyPromptIcon    = document.getElementById("copyPromptIcon");
 const copyPromptText    = document.getElementById("copyPromptText");
 const aiPrompt          = document.getElementById("aiPrompt");
+const aiPromptExplain   = document.getElementById("aiPromptExplain");
+const withExplanation   = document.getElementById("withExplanation");
 const themeBtn          = document.getElementById("themeBtn");
 const themeBtnIcon      = document.getElementById("themeBtnIcon");
 const scrollTopBtn      = document.getElementById("scrollTopBtn");
@@ -55,10 +57,21 @@ clearInputBtn.addEventListener("click", () => {
   input.focus();
 });
 
+// ─── PROMPT TOGGLE ───────────────────────────────────────────────────────────
+function activePrompt() {
+  return withExplanation.checked ? aiPromptExplain : aiPrompt;
+}
+
+withExplanation.addEventListener("change", () => {
+  aiPrompt.classList.toggle("hidden", withExplanation.checked);
+  aiPromptExplain.classList.toggle("hidden", !withExplanation.checked);
+});
+
 // ─── COPY PROMPT ─────────────────────────────────────────────────────────────
 copyPromptBtn.addEventListener("click", async () => {
+  const el = activePrompt();
   try {
-    await navigator.clipboard.writeText(aiPrompt.textContent.trim());
+    await navigator.clipboard.writeText(el.textContent.trim());
     copyPromptBtn.classList.add("copied");
     copyPromptIcon.querySelector("use").setAttribute("href", "#icon-check");
     copyPromptText.textContent = "Скопировано";
@@ -69,7 +82,7 @@ copyPromptBtn.addEventListener("click", async () => {
     }, 2000);
   } catch {
     const r = document.createRange();
-    r.selectNode(aiPrompt);
+    r.selectNode(el);
     window.getSelection().removeAllRanges();
     window.getSelection().addRange(r);
     document.execCommand("copy");
@@ -174,7 +187,7 @@ function parseLocal(text) {
     if (!line) continue;
     if (/^\d+[\s.):]\s*\S/.test(line)) {
       if (cur && cur.answers.length) questions.push(cur);
-      cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [] };
+      cur = { question: line.replace(/^\d+[\s.):]\s*/, "").trim(), answers: [], explanation: "" };
       continue;
     }
     if (/^[A-D][\s.)]\s*\S/.test(line)) {
@@ -185,6 +198,11 @@ function parseLocal(text) {
         .replace(/^[A-D][\s.)]+\s*/, "")
         .trim();
       cur.answers.push({ text: clean, correct: isCorrect });
+      continue;
+    }
+    // Parse explanation line
+    if (cur && /^Объяснение\s*:/i.test(line)) {
+      cur.explanation = line.replace(/^Объяснение\s*:\s*/i, "").trim();
       continue;
     }
     if (cur && cur.answers.length === 0) cur.question += "\n" + line;
@@ -321,11 +339,18 @@ function renderPage() {
         } else if (aIndex === saved && !q.answers[aIndex]?.correct) {
           label.classList.add("wrong");
         }
-        // restore checked state visually
         if (aIndex === saved) {
           label.querySelector("input").checked = true;
         }
       });
+
+      // Show explanation if present
+      if (q.explanation) {
+        const expEl = document.createElement("div");
+        expEl.className = "question-explanation";
+        expEl.innerHTML = `<span class="explanation-label">Объяснение</span>${q.explanation}`;
+        card.appendChild(expEl);
+      }
     } else {
       // Restore saved answer
       if (saved !== undefined) {
